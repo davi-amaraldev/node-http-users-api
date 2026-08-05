@@ -1,0 +1,14 @@
+{
+  "name": "http-study",
+  "version": "1.0.0",
+  "description": "API CRUD de usuários desenvolvida com o módulo nativo node:http",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}
