@@ -1,14 +1,15 @@
 import http from 'node:http';
 import { sendJSON, readJSONBody } from './utils/http.js';
+import {
+    createUser,
+    getAllUsers,
+    getUserByID,
+    replaceUser,
+    updateUser,
+    deleteUser,
+} from './repositories/user-repository.js';
 
 const PORT = 3000;
-
-function getUserByID(id) {
-    return users.find(user => user.id === id);
-}
-
-const users = []
-let nextUserID = 1;
 
 const server = http.createServer(async (req, res) => {
     console.log(req.method, req.url);
@@ -32,6 +33,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && isUsersCollection) {
+        const users = getAllUsers();
         return sendJSON(res, 200, users);
     }
 
@@ -43,7 +45,7 @@ const server = http.createServer(async (req, res) => {
             return sendJSON(res, 404, {
                 code: 404,
                 msg: 'Not Found'
-            })
+            });
         }
 
         return sendJSON(res, 200, foundUser);
@@ -55,111 +57,85 @@ const server = http.createServer(async (req, res) => {
     ) {
         try {
             const receivedUser = await readJSONBody(req);
-
-            const newUser = {
-                id: nextUserID++,
-                name: receivedUser.name,
-                email: receivedUser.email,
-                age: receivedUser.age,
-            }
-
-            users.push(newUser);
+            const newUser = createUser(receivedUser);
 
             return sendJSON(res, 201, newUser)
         } catch (error) {
             return sendJSON(res, 400, {
                 code: 400,
                 msg: error.message
-            })
+            });
         }
     }
 
     if (req.method === 'PUT' && resource === 'users' && id) {
         const numericId = Number(id);
-        const userIndex = users.findIndex(user => user.id === numericId);
 
-        if (userIndex === -1) {
-            return sendJSON(res, 404, {
-                code: 404,
-                msg: 'Not Found'
-            })
-        }
         try {
-            const receivedUser = await readJSONBody(req)
-            const updatedUser = {
-                id: numericId,
-                name: receivedUser.name,
-                email: receivedUser.email,
-                age: receivedUser.age,
-            }
+            const receivedUser = await readJSONBody(req);
+            const updatedUser = replaceUser(numericId, receivedUser);
 
-            users[userIndex] = updatedUser;
+            if (!updatedUser) {
+                return sendJSON(res, 404, {
+                    code: 404,
+                    msg: 'Not Found'
+                });
+            }
 
             return sendJSON(res, 200, updatedUser);
         } catch (error) {
             return sendJSON(res, 400, {
                 code: 400,
                 msg: error.message
-            })
+            });
         }
     }
 
     if (req.method === 'PATCH' && resource === 'users' && id) {
         const numericId = Number(id);
-        const userIndex = users.findIndex(user => user.id === numericId);
 
-        if (userIndex === -1) {
-            return sendJSON(res, 404, {
-                code: 404,
-                msg: 'Not Found'
-            })
-        }
         try {
             const receivedUser = await readJSONBody(req);
-            const updatedUser = {
-                ...users[userIndex],
-                ...receivedUser,
-                id: numericId
-            }
+            const updatedUser = updateUser(numericId, receivedUser);
 
-            users[userIndex] = updatedUser;
+            if (!updateUser) {
+                return sendJSON(res, 404, {
+                    code: 404,
+                    msg: 'Usuário não encontrado',
+                });
+            }
 
             return sendJSON(res, 200, updatedUser);
         } catch (error) {
             return sendJSON(res, 400, {
                 code: 400,
                 msg: error.message
-            })
-
+            });
         }
     }
 
     if (req.method === 'DELETE' && resource === 'users' && id) {
         const numericId = Number(id);
-        const userIndex = users.findIndex(user => user.id === numericId);
+        const deletedUser = deleteUser(numericId);
 
-        if (userIndex === -1) {
+        if (!deletedUser) {
             return sendJSON(res, 404, {
-                msg: "Usuário não encontrado",
-            })
+                code: 404,
+                msg: 'Usuário não encontrado',
+            });
         }
-
-        const deletedUsers = users.splice(userIndex, 1);
-        const deletedUser = deletedUsers[0];
 
         return sendJSON(res, 200, {
             msg: 'Usuário removido',
             user: deletedUser,
-        })
-
+        });
     }
-
 
     return sendJSON(res, 404, {
         code: 404,
         msg: 'Not Found',
-    })
-})
+    });
+});
 
 server.listen(PORT, 'localhost', () => {
     console.log(`Servidor local rodando em http://localhost:${PORT}`);
