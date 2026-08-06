@@ -13,16 +13,25 @@ let nextUserID = 1;
 const server = http.createServer(async (req, res) => {
     console.log(req.method, req.url);
 
-    const urlParts = req.url.split('/');
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname;
+
+    const urlParts = pathname.split('/');
     const resource = urlParts[1];
     const id = urlParts[2];
 
-    if (req.method === 'GET' && req.url === '/') {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const isUsersCollection =
+        pathname === '/users' || pathname === '/users/';
+
+    if (req.method === 'GET' && pathname === '/') {
+        res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8'
+        });
+
         return res.end('<h1>Página inicial</h1>');
     }
 
-    if (req.method === 'GET' && (req.url === '/users' || req.url === '/users/')) {
+    if (req.method === 'GET' && isUsersCollection) {
         return sendJSON(res, 200, users);
     }
 
@@ -42,7 +51,7 @@ const server = http.createServer(async (req, res) => {
 
     if (
         req.method === 'POST' &&
-        (req.url === '/users' || req.url === '/users/')
+        isUsersCollection
     ) {
         try {
             const receivedUser = await readJSONBody(req);
