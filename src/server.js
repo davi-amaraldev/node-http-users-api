@@ -1,18 +1,16 @@
 import http from 'node:http';
+import { sendJSON, readJSONBody } from './utils/http.js';
 
 const PORT = 3000;
-
-const JSON_HEADERS = {
-    'Content-Type': 'application/json; charset=utf-8',
-};
 
 function getUserByID(id) {
     return users.find(user => user.id === id);
 }
 
 const users = []
+let nextUserID = 1;
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
     console.log(req.method, req.url);
 
     const urlParts = req.url.split('/');
@@ -21,14 +19,11 @@ const server = http.createServer((req, res) => {
 
     if (req.method === 'GET' && req.url === '/') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-
         return res.end('<h1>Página inicial</h1>');
     }
 
     if (req.method === 'GET' && (req.url === '/users' || req.url === '/users/')) {
-        res.writeHead(200, JSON_HEADERS);
-
-        return res.end(JSON.stringify(users));
+        return sendJSON(res, 200, users);
     }
 
     if (req.method === 'GET' && resource === 'users' && id) {
@@ -36,33 +31,24 @@ const server = http.createServer((req, res) => {
         const foundUser = getUserByID(numericId);
 
         if (!foundUser) {
-            res.writeHead(404, JSON_HEADERS);
-
-            return res.end(JSON.stringify({
-                code: res.statusCode,
-                msg: res.statusMessage
-            }))
+            return sendJSON(res, 404, {
+                code: 404,
+                msg: 'Not Found'
+            })
         }
 
-        res.writeHead(200, JSON_HEADERS);
-        return res.end(JSON.stringify(foundUser));
+        return sendJSON(res, 200, foundUser);
     }
 
     if (
         req.method === 'POST' &&
         (req.url === '/users' || req.url === '/users/')
     ) {
-        let body = '';
-
-        req.on('data', (chunk) => {
-            body += chunk.toString();
-        })
-
-        req.on('end', () => {
-            const receivedUser = JSON.parse(body);
+        try {
+            const receivedUser = await readJSONBody(req);
 
             const newUser = {
-                id: users.length + 1,
+                id: nextUserID++,
                 name: receivedUser.name,
                 email: receivedUser.email,
                 age: receivedUser.age,
@@ -70,14 +56,13 @@ const server = http.createServer((req, res) => {
 
             users.push(newUser);
 
-            res.writeHead(201, JSON_HEADERS);
-
-            return res.end(JSON.stringify({
-                msg: 'Body recebido com sucesso'
-            }));
-        });
-
-        return;
+            return sendJSON(res, 201, newUser)
+        } catch (error) {
+            return sendJSON(res, 400, {
+                code: 400,
+                msg: error.message
+            })
+        }
     }
 
     if (req.method === 'PUT' && resource === 'users' && id) {
@@ -85,39 +70,29 @@ const server = http.createServer((req, res) => {
         const userIndex = users.findIndex(user => user.id === numericId);
 
         if (userIndex === -1) {
-
-            res.writeHead(404, JSON_HEADERS);
-            return res.end(JSON.stringify({
-                error: 'Usuário não encontrado',
-            }))
+            return sendJSON(res, 404, {
+                code: 404,
+                msg: 'Not Found'
+            })
         }
-
-        let body = '';
-
-        req.on('data', (chunk) => {
-            body += chunk.toString();
-        })
-
-
-        req.on('end', () => {
-            const receivedUser = JSON.parse(body);
-            const updatedUSer = {
+        try {
+            const receivedUser = await readJSONBody(req)
+            const updatedUser = {
                 id: numericId,
                 name: receivedUser.name,
                 email: receivedUser.email,
                 age: receivedUser.age,
             }
 
-            users[userIndex] = updatedUSer;
-            console.log('Usuário atualizado: ', users[userIndex]);
+            users[userIndex] = updatedUser;
 
-            res.writeHead(200, JSON_HEADERS);
-            return res.end(JSON.stringify({
-                userIndex,
-            }));
-        })
-
-        return;
+            return sendJSON(res, 200, updatedUser);
+        } catch (error) {
+            return sendJSON(res, 400, {
+                code: 400,
+                msg: error.message
+            })
+        }
     }
 
     if (req.method === 'PATCH' && resource === 'users' && id) {
@@ -125,70 +100,56 @@ const server = http.createServer((req, res) => {
         const userIndex = users.findIndex(user => user.id === numericId);
 
         if (userIndex === -1) {
-
-            res.writeHead(404, JSON_HEADERS);
-            return res.end(JSON.stringify({
-                error: 'Usuário não encontrado',
-            }))
+            return sendJSON(res, 404, {
+                code: 404,
+                msg: 'Not Found'
+            })
         }
-
-        let body = '';
-
-        req.on('data', (chunk) => {
-            body += chunk.toString();
-        })
-
-
-        req.on('end', () => {
-            const receivedUser = JSON.parse(body);
-            const updatedUSer = {
+        try {
+            const receivedUser = await readJSONBody(req);
+            const updatedUser = {
                 ...users[userIndex],
                 ...receivedUser,
                 id: numericId
             }
 
-            users[userIndex] = updatedUSer;
-            console.log('Usuário atualizado: ', users[userIndex]);
+            users[userIndex] = updatedUser;
 
-            res.writeHead(200, JSON_HEADERS);
-            return res.end(JSON.stringify({
-                userIndex,
-            }));
-        })
+            return sendJSON(res, 200, updatedUser);
+        } catch (error) {
+            return sendJSON(res, 400, {
+                code: 400,
+                msg: error.message
+            })
 
-        return;
+        }
     }
 
-    if(req.method === 'DELETE' && resource === 'users' && id){
+    if (req.method === 'DELETE' && resource === 'users' && id) {
         const numericId = Number(id);
         const userIndex = users.findIndex(user => user.id === numericId);
 
-        if(userIndex.id === -1){
-            res.writeHead(404, JSON_HEADERS);
-
-            return res.end(JSON.stringify({
-                code: res.statusCode,
-                error: 'User Not Found',    
-            }))
+        if (userIndex === -1) {
+            return sendJSON(res, 404, {
+                msg: "Usuário não encontrado",
+            })
         }
 
         const deletedUsers = users.splice(userIndex, 1);
         const deletedUser = deletedUsers[0];
 
-        res.writeHead(200, JSON_HEADERS);
-        return res.end(JSON.stringify({
-            msg: `Usuário removido`,
+        return sendJSON(res, 200, {
+            msg: 'Usuário removido',
             user: deletedUser,
-        }))
+        })
 
     }
 
 
-    res.writeHead(404, JSON_HEADERS);
-    return res.end(JSON.stringify({
-        code: res.statusCode,
-        msg: res.statusMessage
-    }))
+    return sendJSON(res, 404, {
+        code: 404,
+        msg: 'Not Found',
+    })
 })
 
 server.listen(PORT, 'localhost', () => {
