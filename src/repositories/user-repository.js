@@ -1,62 +1,40 @@
+import { database } from '../database/database.js';
+
 const users = [];
 let nextUserID = 1;
 
 export function getAllUsers() {
-    return users;
+    return getAllUsersStatement.all();
 }
 
 export function getUserByID(id) {
-    return users.find(user => user.id === id);
+    return getUserByIDStatement.get(id);
 }
 
 export function createUser(userData) {
-    const newUser = {
-        id: nextUserID++,
-        name: userData.name,
-        email: userData.email,
-        age: userData.age,
-    };
-
-    users.push(newUser);
-
-    return newUser;
+    return createUserStatement.get(
+        userData.name,
+        userData.email,
+        userData.age
+    );
 }
 
 export function replaceUser(id, userData) {
-    const userIndex = users.findIndex(user => user.id === id);
-
-    if (userIndex === -1) {
-        return null;
-    }
-
-    const updatedUser = {
-        id,
-        name: userData.name,
-        email: userData.email,
-        age: userData.age,
-    };
-
-    users[userIndex] = updatedUser;
-
-    return updatedUser;
+    return replaceUserStatement.get(
+        userData.name,
+        userData.email,
+        userData.age,
+        id
+    )
 }
 
 export function updateUser(id, userData) {
-    const userIndex = users.findIndex(user => user.id === id);
-
-    if (userIndex === -1) {
-        return null;
-    }
-
-    const updatedUser = {
-        ...users[userIndex],
-        ...userData,
-        id,
-    };
-
-    users[userIndex] = updatedUser;
-
-    return updatedUser;
+    return updateUserStatement.get(
+        userData.name ?? null,
+        userData.email ?? null,
+        userData.age ?? null,
+        id
+    )
 }
 
 export function deleteUser(id) {
@@ -71,3 +49,42 @@ export function deleteUser(id) {
 
     return deletedUser;
 }
+
+const getAllUsersStatement = database.prepare(`
+    SELECT id, name, email, age
+    FROM users
+    ORDER BY id
+`);
+
+const createUserStatement = database.prepare(`
+    INSERT INTO users (name, email, age)
+    VALUES (?, ?, ?)
+    RETURNING id, name, email, age
+`);
+
+const getUserByIDStatement = database.prepare(`
+    SELECT id, name, email, age
+    FROM users
+    WHERE id = ?
+`);
+
+const replaceUserStatement = database.prepare(`
+    UPDATE users
+    SET name = ?, email = ?, age = ?
+    WHERE id = ? 
+    RETURNING id, name, email, age
+`);
+
+const updateUserStatement = database.prepare(`
+    UPDATE users
+    SET
+        name = COALESCE(?, name),
+        email = COALESCE(?, email),
+        age = COALESCE(?, age)
+    WHERE id = ?
+    RETURNING id, name, email, age
+`)
+
+const deleteUserStatement = database.prepare(`
+    
+`)
