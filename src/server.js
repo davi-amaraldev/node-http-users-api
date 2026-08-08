@@ -8,7 +8,11 @@ import {
     updateUser,
     deleteUser,
 } from './repositories/user-repository.js';
-import { validateCreateUser, validateUpdateUser } from './validators/user-validator.js';
+import {
+    validateCreateUser,
+    validateUpdateUser,
+    validateUserID,
+} from './validators/user-validator.js';
 
 const PORT = 3000;
 
@@ -39,7 +43,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && resource === 'users' && id) {
-        const numericId = Number(id);
+        let numericId;
+
+        try {
+            numericId = validateUserID(id);
+        } catch (error) {
+            return sendJSON(res, 400, {
+                code: 400,
+                msg: error.message
+            })
+        }
         const foundUser = getUserByID(numericId);
 
         if (!foundUser) {
@@ -73,9 +86,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'PUT' && resource === 'users' && id) {
-        const numericId = Number(id);
-
         try {
+            const numericId = validateUserID(id);
             const receivedUser = await readJSONBody(req);
 
             validateCreateUser(receivedUser);
@@ -98,9 +110,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'PATCH' && resource === 'users' && id) {
-        const numericId = Number(id);
-
         try {
+            const numericId = validateUserID(id);
             const receivedUser = await readJSONBody(req);
 
             validateUpdateUser(receivedUser);
@@ -124,20 +135,27 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'DELETE' && resource === 'users' && id) {
-        const numericId = Number(id);
-        const deletedUser = deleteUser(numericId);
+        try {
+            const numericId = validateUserID(id);
+            const deletedUser = deleteUser(numericId);
 
-        if (!deletedUser) {
-            return sendJSON(res, 404, {
-                code: 404,
-                msg: 'Usuário não encontrado',
+            if (!deletedUser) {
+                return sendJSON(res, 404, {
+                    code: 404,
+                    msg: 'Usuário não encontrado',
+                });
+            }
+
+            return sendJSON(res, 200, {
+                msg: 'Usuário removido',
+                user: deletedUser,
+            });
+        } catch (error) {
+            return sendJSON(res, 400, {
+                code: 400,
+                msg: error.message,
             });
         }
-
-        return sendJSON(res, 200, {
-            msg: 'Usuário removido',
-            user: deletedUser,
-        });
     }
 
     return sendJSON(res, 404, {

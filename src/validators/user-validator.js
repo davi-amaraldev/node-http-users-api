@@ -40,16 +40,28 @@ export function validateUserFields(userData) {
     }
 }
 
-export function validateUpdateUser(userData){
+export function validateUpdateUser(userData) {
     const allowedFields = ['name', 'email', 'age'];
 
     const hasValidField = allowedFields.some(
         field => userData[field] !== undefined
     );
 
-    if (!hasValidField){
+    if (!hasValidField) {
         throw new Error(
             'Informe pelo menos um campo válido: name, email ou age.'
-        )
+        );
     }
+
+    validateUserFields(userData);
+}
+
+export function validateUserID(id){
+    const numericId = Number(id);
+
+    if(!Number.isInteger(numericId) || numericId <= 0){
+        throw new Error('ID deve ser um número inteiro positivo');
+    }
+
+    return numericId;
 }
