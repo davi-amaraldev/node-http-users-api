@@ -8,6 +8,7 @@ import {
     updateUser,
     deleteUser,
 } from './repositories/user-repository.js';
+import { validateCreateUser, validateUpdateUser } from './validators/user-validator.js';
 
 const PORT = 3000;
 
@@ -57,6 +58,9 @@ const server = http.createServer(async (req, res) => {
     ) {
         try {
             const receivedUser = await readJSONBody(req);
+
+            validateCreateUser(receivedUser);
+
             const newUser = createUser(receivedUser);
 
             return sendJSON(res, 201, newUser)
@@ -73,6 +77,8 @@ const server = http.createServer(async (req, res) => {
 
         try {
             const receivedUser = await readJSONBody(req);
+
+            validateCreateUser(receivedUser);
             const updatedUser = replaceUser(numericId, receivedUser);
 
             if (!updatedUser) {
@@ -96,9 +102,12 @@ const server = http.createServer(async (req, res) => {
 
         try {
             const receivedUser = await readJSONBody(req);
+
+            validateUpdateUser(receivedUser);
+
             const updatedUser = updateUser(numericId, receivedUser);
 
-            if (!updateUser) {
+            if (!updatedUser) {
                 return sendJSON(res, 404, {
                     code: 404,
                     msg: 'Usuário não encontrado',
