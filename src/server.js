@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { sendJSON, readJSONBody } from './utils/http.js';
+import { ConflictError } from './errors/conflict-error.js';
 import {
     createUser,
     getAllUsers,
@@ -15,6 +16,20 @@ import {
 } from './validators/user-validator.js';
 
 const PORT = 3000;
+
+function handleRequestError(res, error) {
+    if (error instanceof ConflictError) {
+        return sendJSON(res, 409, {
+            code: 409,
+            msg: error.message
+        });
+    }
+
+    return sendJSON(res, 400, {
+        code: 400,
+        msg: error.message
+    });
+}
 
 const server = http.createServer(async (req, res) => {
     console.log(req.method, req.url);
@@ -48,10 +63,7 @@ const server = http.createServer(async (req, res) => {
         try {
             numericId = validateUserID(id);
         } catch (error) {
-            return sendJSON(res, 400, {
-                code: 400,
-                msg: error.message
-            })
+            return handleRequestError(res, error);
         }
         const foundUser = getUserByID(numericId);
 
@@ -78,10 +90,7 @@ const server = http.createServer(async (req, res) => {
 
             return sendJSON(res, 201, newUser)
         } catch (error) {
-            return sendJSON(res, 400, {
-                code: 400,
-                msg: error.message
-            });
+            return handleRequestError(res, error);
         }
     }
 
@@ -102,10 +111,8 @@ const server = http.createServer(async (req, res) => {
 
             return sendJSON(res, 200, updatedUser);
         } catch (error) {
-            return sendJSON(res, 400, {
-                code: 400,
-                msg: error.message
-            });
+
+            return handleRequestError(res, error);
         }
     }
 
@@ -127,10 +134,8 @@ const server = http.createServer(async (req, res) => {
 
             return sendJSON(res, 200, updatedUser);
         } catch (error) {
-            return sendJSON(res, 400, {
-                code: 400,
-                msg: error.message
-            });
+
+            return handleRequestError(res, error);
         }
     }
 
@@ -151,10 +156,7 @@ const server = http.createServer(async (req, res) => {
                 user: deletedUser,
             });
         } catch (error) {
-            return sendJSON(res, 400, {
-                code: 400,
-                msg: error.message,
-            });
+            return handleRequestError(res, error);
         }
     }
 

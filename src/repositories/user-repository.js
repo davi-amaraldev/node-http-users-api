@@ -1,4 +1,13 @@
 import { database } from '../database/database.js';
+import { ConflictError } from '../errors/conflict-error.js';
+
+function handleDatabaseError(error) {
+    if (error.errcode === 2067) {
+        throw new ConflictError('Email já cadastrado.');
+    }
+
+    throw error;
+}
 
 const getAllUsersStatement = database.prepare(`
     SELECT id, name, email, age
@@ -50,29 +59,41 @@ export function getUserByID(id) {
 }
 
 export function createUser(userData) {
-    return createUserStatement.get(
-        userData.name,
-        userData.email,
-        userData.age
-    );
+    try {
+        return createUserStatement.get(
+            userData.name,
+            userData.email,
+            userData.age
+        );
+    } catch (error) {
+        handleDatabaseError(error);
+    }
 }
 
 export function replaceUser(id, userData) {
-    return replaceUserStatement.get(
-        userData.name,
-        userData.email,
-        userData.age,
-        id
-    );
+    try {
+        return replaceUserStatement.get(
+            userData.name,
+            userData.email,
+            userData.age,
+            id
+        );
+    } catch (error) {
+        handleDatabaseError(error);
+    }
 }
 
 export function updateUser(id, userData) {
-    return updateUserStatement.get(
-        userData.name ?? null,
-        userData.email ?? null,
-        userData.age ?? null,
-        id
-    );
+    try {
+        return updateUserStatement.get(
+            userData.name ?? null,
+            userData.email ?? null,
+            userData.age ?? null,
+            id
+        );
+    } catch (error) {
+        handleDatabaseError(error);
+    }
 }
 
 export function deleteUser(id) {
