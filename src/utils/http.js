@@ -1,7 +1,19 @@
+import { UnsupportedMediaTypeError } from "../errors/unsupported-media-type-error";
+
 const JSON_HEADERS = {
     'Content-Type': 'application/json; charset=utf-8',
 }
 
+export function validateJSONContentType(req) {
+    const contentType = req.headers['content-type'];
+
+    const mediaType = contentType?.split(';')[0].trim().toLowerCase();
+    if (mediaType !== 'application/json') {
+        throw new UnsupportedMediaTypeError(
+            'Content-Type deve ser application/json.'
+        );
+    }
+}
 export function sendJSON(res, statusCode, data) {
     res.writeHead(statusCode, JSON_HEADERS);
     return res.end(JSON.stringify(data));

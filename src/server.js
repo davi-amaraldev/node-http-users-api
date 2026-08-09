@@ -1,6 +1,12 @@
 import http from 'node:http';
-import { sendJSON, readJSONBody } from './utils/http.js';
+import { 
+    sendJSON, 
+    readJSONBody,
+    validateJSONContentType,
+} from './utils/http.js';
 import { ConflictError } from './errors/conflict-error.js';
+import { UnsupportedMediaTypeError } from './errors/unsupported-media-type-error.js';
+import { ValidationError } from './errors/validation-error.js';
 import {
     createUser,
     getAllUsers,
@@ -18,16 +24,32 @@ import {
 const PORT = 3000;
 
 function handleRequestError(res, error) {
-    if (error instanceof ConflictError) {
-        return sendJSON(res, 409, {
-            code: 409,
-            msg: error.message
+    if (error instanceof ValidationError) {
+        return sendJSON(res, 400, {
+            code: 400,
+            msg: error.message,
         });
     }
 
-    return sendJSON(res, 400, {
-        code: 400,
-        msg: error.message
+    if (error instanceof ConflictError) {
+        return sendJSON(res, 409, {
+            code: 409,
+            msg: error.message,
+        });
+    }
+
+    if (error instanceof UnsupportedMediaTypeError) {
+        return sendJSON(res, 415, {
+            code: 415,
+            msg: error.message,
+        });
+    }
+
+    console.error(error);
+
+    return sendJSON(res, 500, {
+        code: 500,
+        msg: 'Erro interno do servidor.',
     });
 }
 
@@ -82,6 +104,8 @@ const server = http.createServer(async (req, res) => {
         isUsersCollection
     ) {
         try {
+            validateJSONContentType(req);
+
             const receivedUser = await readJSONBody(req);
 
             validateCreateUser(receivedUser);
@@ -96,6 +120,8 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'PUT' && resource === 'users' && id) {
         try {
+            validateJSONContentType(req);
+
             const numericId = validateUserID(id);
             const receivedUser = await readJSONBody(req);
 
@@ -118,6 +144,8 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'PATCH' && resource === 'users' && id) {
         try {
+            validateJSONContentType(req);
+
             const numericId = validateUserID(id);
             const receivedUser = await readJSONBody(req);
 
