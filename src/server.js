@@ -1,6 +1,6 @@
 import http from 'node:http';
-import { 
-    sendJSON, 
+import {
+    sendJSON,
     readJSONBody,
     validateJSONContentType,
 } from './utils/http.js';
@@ -186,6 +186,35 @@ const server = http.createServer(async (req, res) => {
         } catch (error) {
             return handleRequestError(res, error);
         }
+    }
+
+
+    if (isUsersCollection) {
+        return sendJSON(
+            res,
+            405,
+            {
+                code: 405,
+                msg: 'Method Not Allowed',
+            },
+            {
+                Allow: 'GET, POST',
+            }
+        );
+    }
+
+    if (resource === 'users' && id) {
+        return sendJSON(
+            res,
+            405,
+            {
+                code: 405,
+                msg: 'Method Not Allowed',
+            },
+            {
+                Allow: 'GET, PUT, PATCH, DELETE',
+            }
+        );
     }
 
     return sendJSON(res, 404, {
