@@ -7,6 +7,7 @@ import {
 import { ConflictError } from './errors/conflict-error.js';
 import { UnsupportedMediaTypeError } from './errors/unsupported-media-type-error.js';
 import { ValidationError } from './errors/validation-error.js';
+import { PayloadTooLargeError } from './errors/payload-too-large-error.js';
 import {
     createUser,
     getAllUsers,
@@ -24,7 +25,7 @@ import {
 const PORT = 3000;
 
 function handleRequestError(res, error) {
-    if (error instanceof ValidationError) {
+    if (error instanceof ValidationError || error instanceof SyntaxError) {
         return sendJSON(res, 400, {
             code: 400,
             msg: error.message,
@@ -43,6 +44,13 @@ function handleRequestError(res, error) {
             code: 415,
             msg: error.message,
         });
+    }
+
+    if (error instanceof PayloadTooLargeError){
+        return sendJSON(res, 413, {
+            code: 413,
+            msg: error.message,
+        })
     }
 
     console.error(error);

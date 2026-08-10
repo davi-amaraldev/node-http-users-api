@@ -1,4 +1,5 @@
 import { UnsupportedMediaTypeError } from "../errors/unsupported-media-type-error.js";
+import { PayloadTooLargeError } from '../errors/payload-too-large-error.js';
 
 const JSON_HEADERS = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -26,8 +27,15 @@ export function sendJSON(res, statusCode, data, headers = {}) {
 
 export async function readJSONBody(req) {
     let body = '';
+    let bodySize = 0;
+
+    const MAX_BODY_SIZE = 100 * 1024;
 
     for await (const chunk of req) {
+        bodySize += chunk.length;
+
+        if(bodySize > MAX_BODY_SIZE) throw new PayloadTooLargeError('O corpo da requisição passa de 100KB.');
+
         body += chunk.toString();
     }
 
@@ -37,7 +45,7 @@ export async function readJSONBody(req) {
 
     try {
         return JSON.parse(body);
-    } catch (error) {
+    } catch {
         throw new SyntaxError('JSON inválido.')
     }
 }
