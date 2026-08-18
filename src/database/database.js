@@ -1,8 +1,11 @@
 import { DatabaseSync } from 'node:sqlite';
 
-export const database = new DatabaseSync(
-    new URL('../../data/database.sqlite', import.meta.url)
-);
+const databasePath =
+    process.env.NODE_ENV === 'test'
+        ? ':memory:'
+        : new URL('../../data/database.sqlite', import.meta.url);
+
+export const database = new DatabaseSync(databasePath);
 
 database.exec(` 
     CREATE TABLE IF NOT EXISTS users (
