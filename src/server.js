@@ -1,26 +1,10 @@
 import http from 'node:http';
-import {
-    sendJSON,
-    readJSONBody,
-    validateJSONContentType,
-} from './utils/http.js';
+import { sendJSON } from './utils/http.js';
 import { ConflictError } from './errors/conflict-error.js';
 import { UnsupportedMediaTypeError } from './errors/unsupported-media-type-error.js';
 import { ValidationError } from './errors/validation-error.js';
 import { PayloadTooLargeError } from './errors/payload-too-large-error.js';
-import {
-    createUser,
-    getAllUsers,
-    getUserByID,
-    replaceUser,
-    updateUser,
-    deleteUser,
-} from './repositories/user-repository.js';
-import {
-    validateCreateUser,
-    validateUpdateUser,
-    validateUserID,
-} from './validators/user-validator.js';
+import { handleUsersRoutes } from './routes/users-routes.js';
 
 const PORT = 3000;
 
@@ -46,7 +30,7 @@ function handleRequestError(res, error) {
         });
     }
 
-    if (error instanceof PayloadTooLargeError){
+    if (error instanceof PayloadTooLargeError) {
         return sendJSON(res, 413, {
             code: 413,
             msg: error.message,
@@ -67,13 +51,6 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
 
-    const urlParts = pathname.split('/');
-    const resource = urlParts[1];
-    const id = urlParts[2];
-
-    const isUsersCollection =
-        pathname === '/users' || pathname === '/users/';
-
     if (req.method === 'GET' && pathname === '/') {
         res.writeHead(200, {
             'Content-Type': 'text/html; charset=utf-8'
@@ -82,147 +59,15 @@ const server = http.createServer(async (req, res) => {
         return res.end('<h1>Página inicial</h1>');
     }
 
-    if (req.method === 'GET' && isUsersCollection) {
-        const users = getAllUsers();
-        return sendJSON(res, 200, users);
-    }
+    const usersRouteHandled = await handleUsersRoutes(
+        req,
+        res,
+        pathname,
+        handleRequestError
+    );
 
-    if (req.method === 'GET' && resource === 'users' && id) {
-        let numericId;
-
-        try {
-            numericId = validateUserID(id);
-        } catch (error) {
-            return handleRequestError(res, error);
-        }
-        const foundUser = getUserByID(numericId);
-
-        if (!foundUser) {
-            return sendJSON(res, 404, {
-                code: 404,
-                msg: 'Not Found'
-            });
-        }
-
-        return sendJSON(res, 200, foundUser);
-    }
-
-    if (
-        req.method === 'POST' &&
-        isUsersCollection
-    ) {
-        try {
-            validateJSONContentType(req);
-
-            const receivedUser = await readJSONBody(req);
-
-            validateCreateUser(receivedUser);
-
-            const newUser = createUser(receivedUser);
-
-            return sendJSON(res, 201, newUser)
-        } catch (error) {
-            return handleRequestError(res, error);
-        }
-    }
-
-    if (req.method === 'PUT' && resource === 'users' && id) {
-        try {
-            validateJSONContentType(req);
-
-            const numericId = validateUserID(id);
-            const receivedUser = await readJSONBody(req);
-
-            validateCreateUser(receivedUser);
-            const updatedUser = replaceUser(numericId, receivedUser);
-
-            if (!updatedUser) {
-                return sendJSON(res, 404, {
-                    code: 404,
-                    msg: 'Not Found'
-                });
-            }
-
-            return sendJSON(res, 200, updatedUser);
-        } catch (error) {
-
-            return handleRequestError(res, error);
-        }
-    }
-
-    if (req.method === 'PATCH' && resource === 'users' && id) {
-        try {
-            validateJSONContentType(req);
-
-            const numericId = validateUserID(id);
-            const receivedUser = await readJSONBody(req);
-
-            validateUpdateUser(receivedUser);
-
-            const updatedUser = updateUser(numericId, receivedUser);
-
-            if (!updatedUser) {
-                return sendJSON(res, 404, {
-                    code: 404,
-                    msg: 'Usuário não encontrado',
-                });
-            }
-
-            return sendJSON(res, 200, updatedUser);
-        } catch (error) {
-
-            return handleRequestError(res, error);
-        }
-    }
-
-    if (req.method === 'DELETE' && resource === 'users' && id) {
-        try {
-            const numericId = validateUserID(id);
-            const deletedUser = deleteUser(numericId);
-
-            if (!deletedUser) {
-                return sendJSON(res, 404, {
-                    code: 404,
-                    msg: 'Usuário não encontrado',
-                });
-            }
-
-            return sendJSON(res, 200, {
-                msg: 'Usuário removido',
-                user: deletedUser,
-            });
-        } catch (error) {
-            return handleRequestError(res, error);
-        }
-    }
-
-
-    if (isUsersCollection) {
-        return sendJSON(
-            res,
-            405,
-            {
-                code: 405,
-                msg: 'Method Not Allowed',
-            },
-            {
-                Allow: 'GET, POST',
-            }
-        );
-    }
-
-    if (resource === 'users' && id) {
-        return sendJSON(
-            res,
-            405,
-            {
-                code: 405,
-                msg: 'Method Not Allowed',
-            },
-            {
-                Allow: 'GET, PUT, PATCH, DELETE',
-            }
-        );
+    if (usersRouteHandled) {
+        return;
     }
 
     return sendJSON(res, 404, {
