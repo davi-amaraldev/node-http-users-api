@@ -185,4 +185,32 @@ describe('Users API', () => {
 
         assert.equal(response.status, 409);
     });
+
+    it('deve responder ao preflight de CORS', async () => {
+        const response = await fetch(`${baseURL}/users`, {
+            method: 'OPTIONS',
+            headers: {
+                Origin: 'http://localhost:4321',
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': 'Content-Type',
+            },
+        });
+
+        assert.equal(response.status, 204);
+
+        assert.equal(
+            response.headers.get('access-control-allow-origin'),
+            '*'
+        );
+
+        assert.equal(
+            response.headers.get('access-control-allow-methods'),
+            'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        );
+
+        assert.equal(
+            response.headers.get('access-control-allow-headers'),
+            'Content-Type'
+        );
+    });
 });

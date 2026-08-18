@@ -1,9 +1,12 @@
-import { sendJSON } from './utils/http.js';
 import { ConflictError } from './errors/conflict-error.js';
 import { UnsupportedMediaTypeError } from './errors/unsupported-media-type-error.js';
 import { ValidationError } from './errors/validation-error.js';
 import { PayloadTooLargeError } from './errors/payload-too-large-error.js';
 import { handleUsersRoutes } from './routes/users-routes.js';
+import {
+    sendJSON,
+    applyCORS,
+} from './utils/http.js';
 
 function handleRequestError(res, error) {
     if (error instanceof ValidationError || error instanceof SyntaxError) {
@@ -44,6 +47,13 @@ function handleRequestError(res, error) {
 
 export async function handleRequest(req, res) {
     console.log(req.method, req.url);
+
+    applyCORS(res);
+
+    if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        return res.end();
+    }
 
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
