@@ -213,4 +213,12 @@ describe('Users API', () => {
             'Content-Type'
         );
     });
+
+    it('deve retornar 404 para rota de usuário com segmentos extras', async () => {
+        const response = await fetch(
+            `${baseURL}/users/1/qualquer-coisa`
+        );
+
+        assert.equal(response.status, 404);
+    });
 });

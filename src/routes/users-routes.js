@@ -23,12 +23,23 @@ export async function handleUsersRoutes(
     pathname,
     handleRequestError,
 ) {
-    const isUsersCollection =
-        pathname === '/users' || pathname === '/users/';
+    const normalizedPath =
+        pathname.length > 1 && pathname.endsWith('/')
+            ? pathname.slice(0, -1)
+            : pathname;
 
-    const urlParts = pathname.split('/');
+    const urlParts = normalizedPath.split('/');
+
     const resource = urlParts[1];
     const id = urlParts[2];
+
+    const isUsersCollection =
+        normalizedPath === '/users';
+
+    const isUserResource =
+        resource === 'users' &&
+        id !== undefined &&
+        urlParts.length === 3;
 
     if (req.method === 'GET' && isUsersCollection) {
         const users = getAllUsers();
@@ -38,7 +49,7 @@ export async function handleUsersRoutes(
         return true;
     }
 
-    if (req.method === 'GET' && resource === 'users' && id) {
+    if (req.method === 'GET' && isUserResource) {
         let numericId;
 
         try {
@@ -85,7 +96,7 @@ export async function handleUsersRoutes(
         }
     }
 
-    if (req.method === 'PUT' && resource === 'users' && id) {
+    if (req.method === 'PUT' && isUserResource) {
         try {
             validateJSONContentType(req);
 
@@ -111,7 +122,7 @@ export async function handleUsersRoutes(
         }
     }
 
-    if (req.method === 'PATCH' && resource === 'users' && id) {
+    if (req.method === 'PATCH' && isUserResource) {
         try {
             validateJSONContentType(req);
 
@@ -138,7 +149,7 @@ export async function handleUsersRoutes(
         }
     }
 
-    if (req.method === 'DELETE' && resource === 'users' && id) {
+    if (req.method === 'DELETE' && isUserResource) {
         try {
             const numericId = validateUserID(id);
             const deletedUser = deleteUser(numericId);
@@ -179,7 +190,7 @@ export async function handleUsersRoutes(
         return true;
     }
 
-    if (resource === 'users' && id) {
+    if (isUserResource) {
         sendJSON(
             res,
             405,
