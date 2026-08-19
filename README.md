@@ -1,30 +1,66 @@
 # Node HTTP Users API
 
-API REST de usuários desenvolvida com **JavaScript** utilizando o módulo nativo `node:http` do Node.js, sem frameworks web.
+API REST de usuários desenvolvida com **JavaScript** utilizando diretamente o módulo nativo `node:http` do Node.js, sem frameworks web.
 
-O projeto foi criado com o objetivo de estudar na prática os fundamentos por trás de uma API HTTP: roteamento, métodos HTTP, headers, status codes, leitura de streams, validação, tratamento de erros, persistência e testes automatizados.
+O projeto foi criado para estudar, na prática, os fundamentos por trás de uma API HTTP: roteamento, métodos HTTP, headers, status codes, streams, validação, persistência, testes automatizados, containerização e deploy.
+
+A aplicação está atualmente containerizada com **Docker**, executada em uma VM da **Oracle Cloud Infrastructure (OCI)** e disponibilizada publicamente através de um reverse proxy **Caddy** com HTTPS.
+
+## Live API
+
+Base URL:
+
+```text
+https://api.140-238-181-238.sslip.io
+```
+
+Exemplo:
+
+```http
+GET https://api.140-238-181-238.sslip.io/users
+```
+
+Resposta inicial de um banco vazio:
+
+```json
+[]
+```
+
+---
 
 ## Funcionalidades
 
 * Listagem de usuários
 * Busca de usuário por ID
 * Criação de usuários
-* Substituição completa de usuários com `PUT`
+* Substituição completa com `PUT`
 * Atualização parcial com `PATCH`
 * Remoção de usuários
 * Persistência com SQLite
 * Validação de dados
 * Validação de IDs
 * Validação de `Content-Type`
-* Email único
+* Restrição de email único
 * Limite de tamanho do body
 * CORS
+* Suporte a preflight com `OPTIONS`
 * Rotas estritas
+* `405 Method Not Allowed` com header `Allow`
 * Tratamento centralizado de erros HTTP
 * Testes unitários
 * Testes de integração HTTP
+* Banco isolado em memória durante os testes
+* Containerização com Docker
+* Persistência do SQLite com Docker Volume
+* Reverse proxy com Caddy
+* HTTPS automático
+* Deploy em Oracle Cloud Infrastructure
+
+---
 
 ## Tecnologias
+
+### Aplicação
 
 * JavaScript
 * Node.js
@@ -34,7 +70,18 @@ O projeto foi criado com o objetivo de estudar na prática os fundamentos por tr
 * `node:assert`
 * SQLite
 
+### Infraestrutura
+
+* Docker
+* Docker Compose
+* Caddy
+* Oracle Cloud Infrastructure
+* Ubuntu Server
+* HTTPS / TLS
+
 Nenhum framework web, como Express ou Fastify, é utilizado.
+
+---
 
 ## Rotas
 
@@ -48,7 +95,11 @@ Nenhum framework web, como Express ou Fastify, é utilizado.
 | `PATCH`  | `/users/:id` | Atualiza parcialmente um usuário   |
 | `DELETE` | `/users/:id` | Remove um usuário                  |
 
+---
+
 ## Estrutura de um usuário
+
+Para criação:
 
 ```json
 {
@@ -68,6 +119,8 @@ Um usuário persistido possui também um `id`:
   "age": 18
 }
 ```
+
+---
 
 ## Exemplos
 
@@ -130,7 +183,7 @@ GET /users/1
 
 ### Substituir usuário
 
-`PUT` exige os campos necessários para substituir os dados atuais do usuário.
+`PUT` exige os dados necessários para substituir o recurso atual.
 
 ```http
 PUT /users/1
@@ -164,9 +217,37 @@ Content-Type: application/json
 DELETE /users/1
 ```
 
-## Status HTTP
+---
 
-A API utiliza diferentes status codes de acordo com o resultado da requisição.
+## Exemplo com cURL
+
+Criar:
+
+```bash
+curl -X POST https://api.140-238-181-238.sslip.io/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Davi",
+    "email": "davi@example.com",
+    "age": 18
+  }'
+```
+
+Listar:
+
+```bash
+curl https://api.140-238-181-238.sslip.io/users
+```
+
+Buscar por ID:
+
+```bash
+curl https://api.140-238-181-238.sslip.io/users/1
+```
+
+---
+
+## Status HTTP
 
 | Status | Significado                                      |
 | ------ | ------------------------------------------------ |
@@ -181,14 +262,17 @@ A API utiliza diferentes status codes de acordo com o resultado da requisição.
 | `415`  | `Content-Type` não suportado                     |
 | `500`  | Erro interno inesperado                          |
 
+---
+
 ## Validações
 
-Os dados dos usuários passam por validação antes de serem persistidos.
+Os dados recebidos passam por validação antes de serem persistidos.
 
-Entre as validações estão:
+Entre as regras implementadas:
 
 * `name` deve ser texto
 * `name` deve possuir pelo menos 2 caracteres
+* `email` deve ser texto
 * `email` deve possuir formato válido
 * `email` deve ser único
 * `age` deve ser um número inteiro não negativo
@@ -197,25 +281,29 @@ Entre as validações estão:
 * `PATCH` exige pelo menos um campo válido
 * requisições com body devem utilizar `application/json`
 
+---
+
 ## Limite do body
 
-O corpo das requisições possui limite de:
+O corpo das requisições possui um limite de:
 
 ```text
 100 KB
 ```
 
-Caso o limite seja excedido, a API responde com:
+O tamanho é calculado durante a leitura dos chunks da requisição.
+
+Caso o limite seja ultrapassado:
 
 ```text
 413 Payload Too Large
 ```
 
-O tamanho é verificado durante a leitura dos chunks da requisição.
+---
 
 ## CORS
 
-A API possui suporte a CORS para permitir que clientes executados em outros domínios, como o portfólio web, possam consumi-la pelo navegador.
+A API possui suporte a CORS para permitir consumo por aplicações executadas em outros domínios, incluindo o portfólio web.
 
 Métodos permitidos:
 
@@ -223,17 +311,25 @@ Métodos permitidos:
 GET, POST, PUT, PATCH, DELETE, OPTIONS
 ```
 
-Também existe suporte a requisições de preflight utilizando `OPTIONS`.
+Headers permitidos:
+
+```text
+Content-Type
+```
+
+Também existe suporte a requisições de preflight através do método `OPTIONS`.
+
+---
 
 ## Persistência
 
-Os usuários são armazenados em um banco SQLite utilizando o módulo nativo:
+Os usuários são armazenados em SQLite através do módulo nativo:
 
-```js
+```text
 node:sqlite
 ```
 
-A tabela de usuários possui:
+A tabela possui os campos:
 
 ```text
 id
@@ -242,19 +338,43 @@ email
 age
 ```
 
-O campo `email` possui restrição `UNIQUE`.
+O campo `email` utiliza uma restrição `UNIQUE`.
 
-Durante os testes, a aplicação utiliza um banco SQLite em memória:
+### Desenvolvimento
+
+Em execução local normal, o banco é armazenado em:
+
+```text
+data/database.sqlite
+```
+
+### Testes
+
+Durante os testes, é utilizado um banco SQLite em memória:
 
 ```text
 :memory:
 ```
 
-Isso impede que os testes alterem os dados utilizados no ambiente de desenvolvimento.
+Isso evita que os testes modifiquem os dados reais da aplicação.
+
+### Produção
+
+Em produção, o diretório:
+
+```text
+/app/data
+```
+
+é montado em um volume persistente do Docker.
+
+Dessa forma, o arquivo SQLite continua existindo mesmo quando o container da API é recriado.
+
+---
 
 ## Tratamento de erros
 
-A aplicação utiliza classes específicas para representar diferentes erros:
+A aplicação utiliza classes específicas para representar diferentes situações:
 
 ```text
 ValidationError
@@ -263,7 +383,7 @@ UnsupportedMediaTypeError
 PayloadTooLargeError
 ```
 
-Esses erros são convertidos para seus respectivos status HTTP pela camada da aplicação.
+Esses erros são transformados em respostas HTTP apropriadas pela camada principal da aplicação.
 
 Erros inesperados retornam:
 
@@ -272,6 +392,8 @@ Erros inesperados retornam:
 ```
 
 sem expor detalhes internos da aplicação ao cliente.
+
+---
 
 ## Estrutura do projeto
 
@@ -309,56 +431,163 @@ sem expor detalhes internos da aplicação ao cliente.
 │   ├── user-validator.test.js
 │   └── users-api.test.js
 │
+├── .dockerignore
+├── .gitignore
+├── Caddyfile
+├── compose.yml
+├── Dockerfile
 ├── package.json
 └── README.md
 ```
 
-## Arquitetura
+---
 
-A aplicação foi dividida por responsabilidade.
+## Arquitetura da aplicação
+
+A aplicação é dividida por responsabilidades.
 
 ### `server.js`
 
-Responsável por iniciar o servidor HTTP e definir a porta utilizada pela aplicação.
+Responsável por criar o servidor HTTP e iniciar a aplicação na porta configurada.
 
 ### `app.js`
 
-Contém o fluxo principal das requisições, tratamento de erros, CORS e delegação para os módulos de rotas.
+Contém o fluxo principal das requisições, CORS, tratamento de erros e delegação para as rotas.
 
 ### `routes/`
 
-Responsável por identificar e executar as rotas relacionadas a cada recurso.
+Responsável por identificar e executar as rotas de cada recurso.
 
 ### `repositories/`
 
-Responsável pelo acesso e manipulação dos dados persistidos no SQLite.
+Responsável pela comunicação com o banco SQLite.
 
 ### `validators/`
 
-Responsável pela validação dos dados recebidos pela API.
+Responsável pela validação dos dados recebidos.
 
 ### `utils/`
 
-Contém funcionalidades reutilizáveis relacionadas ao protocolo HTTP, como leitura do body e envio de respostas JSON.
+Contém funções reutilizáveis relacionadas ao protocolo HTTP, como leitura do body e envio de respostas JSON.
 
 ### `errors/`
 
-Contém classes de erro utilizadas para representar diferentes situações da aplicação.
+Contém as classes de erro utilizadas pela aplicação.
 
-## Executando localmente
+---
 
-Clone o projeto e entre no diretório:
+## Arquitetura de produção
+
+A aplicação está hospedada em uma VM da Oracle Cloud Infrastructure.
+
+```text
+Internet
+   │
+   │ HTTPS :443
+   ▼
+┌─────────────┐
+│    Caddy    │
+│ Reverse     │
+│ Proxy       │
+└──────┬──────┘
+       │
+       │ Docker network
+       ▼
+┌─────────────────────┐
+│ Node HTTP Users API │
+│      :3000          │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│       SQLite        │
+│  Docker Volume      │
+└─────────────────────┘
+```
+
+A porta `3000` da aplicação é utilizada internamente entre os containers.
+
+O acesso público ocorre através do Caddy nas portas:
+
+```text
+80
+443
+```
+
+---
+
+## Docker
+
+A aplicação possui uma imagem própria baseada em Node.js.
+
+Para construir e iniciar localmente:
 
 ```bash
-git clone <URL-DO-REPOSITORIO>
+docker compose up -d --build
+```
+
+Verificar containers:
+
+```bash
+docker compose ps
+```
+
+Visualizar logs:
+
+```bash
+docker compose logs -f
+```
+
+Parar:
+
+```bash
+docker compose down
+```
+
+O comando acima mantém o volume persistente.
+
+Para remover também os volumes:
+
+```bash
+docker compose down -v
+```
+
+> Atenção: utilizar `-v` remove também o volume que contém o banco SQLite.
+
+---
+
+## Reverse proxy e HTTPS
+
+O Caddy é executado em um container separado e atua como reverse proxy.
+
+Fluxo:
+
+```text
+HTTPS request
+      ↓
+    Caddy
+      ↓
+   api:3000
+      ↓
+ Node.js API
+```
+
+O `Caddyfile` atual aponta o domínio público para o serviço interno da API.
+
+Além do reverse proxy, o Caddy gerencia automaticamente os certificados TLS utilizados pelo endpoint HTTPS.
+
+---
+
+## Executando sem Docker
+
+Clone o projeto:
+
+```bash
+git clone https://github.com/davi-amaraldev/node-http-users-api.git
 cd node-http-users-api
 ```
 
-Instale as dependências do projeto:
-
-```bash
-npm install
-```
+A aplicação não possui dependências externas de runtime.
 
 Inicie em modo de desenvolvimento:
 
@@ -366,23 +595,29 @@ Inicie em modo de desenvolvimento:
 npm run dev
 ```
 
-Por padrão, a aplicação fica disponível em:
-
-```text
-http://localhost:3000
-```
-
-Também é possível iniciar normalmente com:
+Ou:
 
 ```bash
 npm start
 ```
 
+Por padrão:
+
+```text
+http://localhost:3000
+```
+
+---
+
 ## Porta
 
-A aplicação utiliza a variável de ambiente `PORT` quando ela estiver disponível.
+A aplicação utiliza a variável de ambiente:
 
-Caso contrário, utiliza:
+```text
+PORT
+```
+
+Quando ela não é definida, utiliza:
 
 ```text
 3000
@@ -394,42 +629,90 @@ Exemplo:
 PORT=8080 npm start
 ```
 
-Isso permite executar a API em diferentes ambientes de hospedagem.
+O servidor escuta em:
+
+```text
+0.0.0.0
+```
+
+permitindo execução em containers e ambientes de hospedagem.
+
+---
 
 ## Testes
 
-Os testes utilizam o test runner nativo do Node.js:
+Os testes utilizam as ferramentas nativas:
 
 ```text
 node:test
+node:assert
 ```
 
-Para executar:
+Execute:
 
 ```bash
 npm test
 ```
 
-Os testes cobrem casos como:
+Atualmente a suíte possui testes unitários e de integração HTTP cobrindo comportamentos como:
 
 * validação de usuários
 * validação de IDs
-* criação de usuários
+* criação
 * busca por ID
 * atualização parcial
 * remoção
+* persistência
 * rotas inexistentes
-* métodos não permitidos
+* roteamento estrito
+* métodos HTTP não permitidos
+* header `Allow`
 * email duplicado
 * `Content-Type` inválido
-* CORS e preflight
-* roteamento estrito
+* CORS
+* preflight
+* respostas HTTP
+
+Os testes de integração iniciam um servidor HTTP real em uma porta temporária e fazem requisições utilizando `fetch`.
+
+---
+
+## Deploy
+
+O projeto está atualmente executando em:
+
+```text
+Oracle Cloud Infrastructure
+```
+
+O processo de deploy utiliza:
+
+```text
+GitHub
+   ↓
+Oracle Compute VM
+   ↓
+Docker Compose
+   ├── API
+   └── Caddy
+```
+
+Atualizações podem ser publicadas na VM através de:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+O volume do SQLite permanece preservado entre os deploys.
+
+---
 
 ## Por que utilizar `node:http`?
 
-Frameworks como Express e Fastify simplificam grande parte do desenvolvimento de APIs.
+Frameworks como Express e Fastify abstraem grande parte do trabalho necessário para construir um servidor HTTP.
 
-Neste projeto, a intenção foi trabalhar diretamente com as primitivas fornecidas pelo Node.js para compreender melhor o que essas ferramentas abstraem.
+Neste projeto, a proposta foi implementar essas responsabilidades diretamente utilizando as APIs fornecidas pelo Node.js.
 
 Durante o desenvolvimento foram explorados conceitos como:
 
@@ -438,24 +721,55 @@ Durante o desenvolvimento foram explorados conceitos como:
 * headers
 * status codes
 * streams
+* async iteration
 * leitura de body
+* limite de payload
 * serialização JSON
 * parsing de URLs
 * roteamento
+* rotas estritas
 * CORS
 * validação
 * persistência
+* constraints do banco
 * tratamento de erros
-* testes HTTP
+* testes unitários
+* testes de integração HTTP
 * separação de responsabilidades
+* containerização
+* volumes persistentes
+* reverse proxy
+* HTTPS
+* deploy em cloud
 
-O objetivo principal não é substituir frameworks modernos, mas compreender melhor os fundamentos utilizados por eles.
+O objetivo não é substituir frameworks modernos, mas compreender melhor os mecanismos que eles abstraem.
+
+---
 
 ## Objetivo do projeto
 
 Este projeto faz parte dos meus estudos de desenvolvimento back-end e engenharia de software.
 
-A proposta foi construir uma API REST funcional sem utilizar um framework HTTP, passando progressivamente de um servidor básico para uma aplicação com persistência, validações, tratamento de erros, testes automatizados e organização por responsabilidades.
+A aplicação começou como um servidor básico utilizando `http.createServer()` e evoluiu progressivamente para uma API REST completa com:
+
+```text
+HTTP nativo
+→ CRUD
+→ validação
+→ SQLite
+→ tratamento de erros
+→ roteamento
+→ testes
+→ Docker
+→ persistência em volume
+→ cloud
+→ reverse proxy
+→ HTTPS
+```
+
+O projeto busca demonstrar não apenas a implementação de um CRUD, mas a compreensão das camadas envolvidas entre uma requisição HTTP e uma aplicação back-end executando em produção.
+
+---
 
 ## Licença
 
