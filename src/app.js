@@ -2,11 +2,13 @@ import { ConflictError } from './errors/conflict-error.js';
 import { UnsupportedMediaTypeError } from './errors/unsupported-media-type-error.js';
 import { ValidationError } from './errors/validation-error.js';
 import { PayloadTooLargeError } from './errors/payload-too-large-error.js';
+import { TooManyRequestsError } from './errors/too-many-requests-error.js';
 import { handleUsersRoutes } from './routes/users-routes.js';
 import {
     sendJSON,
     applyCORS,
 } from './utils/http.js';
+import { incrementRequestCount } from './utils/rate-limiter.js';
 
 function handleRequestError(res, error) {
     if (error instanceof ValidationError || error instanceof SyntaxError) {
@@ -34,7 +36,20 @@ function handleRequestError(res, error) {
         return sendJSON(res, 413, {
             code: 413,
             msg: error.message,
-        })
+        });
+    }
+
+    if (error instanceof TooManyRequestsError) {
+        res.setHeader(
+            'Retry-After',
+            String(error.retryAfter)
+        );
+
+        return sendJSON(res, 429, {
+            code: 429,
+            msg: error.message,
+            retryAfter: error.retryAfter,
+        });
     }
 
     console.error(error);
@@ -53,6 +68,21 @@ export async function handleRequest(req, res) {
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
         return res.end();
+    }
+
+    if (process.env.NODE_ENV !== 'test') {
+        const rateLimit = incrementRequestCount(req);
+
+        if (!rateLimit.allowed) {
+            const retryAfter = Math.ceil(
+                (rateLimit.resetAt - Date.now()) / 1000
+            );
+
+            return handleRequestError(
+                res,
+                new TooManyRequestsError(retryAfter)
+            );
+        }
     }
 
     const url = new URL(req.url, `http://${req.headers.host}`);
