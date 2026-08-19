@@ -1,0 +1,15 @@
+services:
+  api:
+    build: .
+    container_name: node-http-users-api
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - api-data:/app/data
+
+    restart: unless-stopped
+
+volumes:
+  api-data:
